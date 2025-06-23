@@ -7,19 +7,19 @@ name: Docker
 
 on:
   schedule:
-    - cron: '42 8 * * *'
+    - cron: '35 18 * * *'
   push:
-    branches: [ "main" ]
+    branches: [ "qa" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "qa" ]
 
 env:
   # Use docker.io for Docker Hub if empty
-  REGISTRY: ghcr.io
+  REGISTRY: docker.io
   # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ secrets.DOCKER_REPO }}
 
 
 jobs:
@@ -57,9 +57,9 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -96,3 +96,34 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  deploy:
+      name: qa create_user
+      needs: build
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Deploy EC2
+          uses: appleboy/ssh-action@v1.0.3
+          with:
+            host: ${{ secrets.EC2_IP }}
+            username: ubuntu
+            key: ${{ secrets.EC2_PEM }}
+            script: |
+              docker stop project_create_user || true
+              docker rm project_create_user || true
+              docker rmi ${{ secrets.DOCKER_REPO }}:qa || true
+
+              docker pull ${{ secrets.DOCKER_REPO }}:qa
+
+              docker run -d \
+                --restart always \
+                --name project_create_user \
+                -p 8080:8080 \
+                -e DBA_HOSTIP=${{ secrets.DBA_HOSTIP }} \
+                -e DBA_PORT=${{ secrets.DBA_PORT }} \
+                -e DBA_USER=${{ secrets.DBA_USER }} \
+                -e DBA_PASSWORD=${{ secrets.DBA_PASSWORD }} \
+                -e DBA_NAME=${{ secrets.DBA_NAME }} \
+                -e SECRET_KEY=${{ secrets.SECRET_KEY }} \
+                ${{ secrets.DOCKER_REPO }}:qa
