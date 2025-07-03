@@ -9,7 +9,6 @@ load_dotenv()
 app = Flask(__name__)
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# Iniciar el hilo consumidor del stream al arrancar la app
 start_consumer_thread()
 
 @app.route("/feed", methods=["GET"])
