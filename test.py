@@ -1,39 +1,47 @@
 import requests
 
-# Paso 1: Login
+# Paso 1: Login para obtener el token JWT
 login_data = {
-    "User_mail": "ascorread1",
+    "User_mail": "allan",
     "password": "1234"
 }
 
-login_response = requests.post("http://localhost:8080/login", json=login_data)
+login_url = "http://52.203.72.116:8080/login"
+feed_url = "http://localhost:8082/feed"
+
+login_response = requests.post(login_url, json=login_data)
 if login_response.status_code != 200:
-    print("Login failed:", login_response.text)
+    print("❌ Login failed:", login_response.status_code, login_response.text)
     exit()
 
 token = login_response.json().get("token")
-print("Token:", token)
+if not token:
+    print("❌ Token no recibido.")
+    exit()
 
-# Paso 2: Obtener feed
+print("✅ Token obtenido.")
+
+# Paso 2: Obtener feed del usuario
 headers = {
-    "Authorization": f"Bearer {token}",
-    "Content-Type": "application/json"
+    "Authorization": f"Bearer {token}"
 }
 
-feed_response = requests.get("http://localhost:8082/feed", headers=headers)
+feed_response = requests.get(feed_url, headers=headers)
+print("\n🔎 Status feed:", feed_response.status_code)
 
-print("Status feed:", feed_response.status_code)
 try:
-    print("Feed response:", feed_response.json())
+    feed_data = feed_response.json()
+    print("📥 Feed recibido:")
+    for i, pub in enumerate(feed_data.get("feed", []), start=1):
+        print(f"\n📌 Publicación #{i}")
+        print("🆔 ID:", pub.get("publication_id"))
+        print("👤 Autor:", pub.get("user_id"))
+        print("📝 Texto:", pub.get("text"))
+        print("🗓 Fecha:", pub.get("datepublish"))
+        if pub.get("image_base64"):
+            print("🖼 Multimedia: Sí")
+        else:
+            print("🖼 Multimedia: No")
 except Exception as e:
-    print("Error decoding JSON:", str(e))
+    print("❌ Error decoding JSON:", str(e))
     print("Raw content:", feed_response.text)
-
-# Paso 3 (opcional): Obtener lista de seguidos (following)
-following_response = requests.get("http://localhost:8081/following", headers=headers)
-print("Status following:", following_response.status_code)
-try:
-    print("Following response:", following_response.json())
-except Exception as e:
-    print("Error decoding JSON:", str(e))
-    print("Raw content:", following_response.text)

@@ -1,41 +1,47 @@
-import os
-from flask import Flask, jsonify, request
-import jwt
-from dotenv import load_dotenv
-from services.functions import start_consumer_thread, get_user_feed
+import requests
 
-load_dotenv()
+# Step 1: Login to obtain JWT token
+login_data = {
+    "User_mail": "allan",
+    "password": "1234"
+}
 
-app = Flask(__name__)
-SECRET_KEY = os.getenv("SECRET_KEY")
+login_url = "http://52.203.72.116:8080/login"
+feed_url = "http://localhost:8082/feed"
 
-# Variable global para almacenar el token que usa el consumidor (puede mejorarse)
-consumer_token = None
+login_response = requests.post(login_url, json=login_data)
+if login_response.status_code != 200:
+    print("❌ Login failed:", login_response.status_code, login_response.text)
+    exit()
 
-@app.route('/feed', methods=['GET'])
-def feed():
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        return jsonify({'error': 'Missing Authorization header'}), 401
+token = login_response.json().get("token")
+if not token:
+    print("Token was not received.")
+    exit()
 
-    try:
-        token = auth_header.split()[1]
-        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = str(decoded.get("user_id"))
-    except Exception as e:
-        return jsonify({'error': f'Invalid token: {str(e)}'}), 403
+print("Token successfully obtained.")
 
-    try:
-        feed_publications = get_user_feed(user_id)
-        return jsonify({"user_id": user_id, "feed": feed_publications}), 200
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch feed: {str(e)}"}), 500
+# Step 2: Get user feed
+headers = {
+    "Authorization": f"Bearer {token}"
+}
 
-if __name__ == '__main__':
-    # Para arrancar el consumidor, pide el token de ambiente o ingresa uno aquí directamente
-    consumer_token = os.getenv("CONSUMER_TOKEN")
-    if not consumer_token:
-        print("⚠️ WARNING: CONSUMER_TOKEN env var not set! The consumer thread might not work properly.")
-    
-    start_consumer_thread(consumer_token)
-    app.run(host='0.0.0.0', port=8082, debug=True)
+feed_response = requests.get(feed_url, headers=headers)
+print("\n🔎 Feed status:", feed_response.status_code)
+
+try:
+    feed_data = feed_response.json()
+    print("📥 Feed data received:")
+    for i, pub in enumerate(feed_data.get("feed", []), start=1):
+        print(f"\n📌 Publication #{i}")
+        print("🆔 ID:", pub.get("publication_id"))
+        print("👤 Author:", pub.get("user_id"))
+        print("📝 Text:", pub.get("text"))
+        print("🗓 Date:", pub.get("datepublish"))
+        if pub.get("image_base64"):
+            print("🖼 Multimedia: Yes")
+        else:
+            print("🖼 Multimedia: No")
+except Exception as e:
+    print("❌ Error decoding JSON:", str(e))
+    print("Raw content:", feed_response.text)
