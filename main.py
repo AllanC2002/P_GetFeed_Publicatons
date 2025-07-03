@@ -1,47 +1,36 @@
-import requests
+from flask import Flask, request, jsonify
+import jwt
+import os
+from dotenv import load_dotenv
+from services.functions import get_user_feed, start_consumer_thread
 
-# Step 1: Login to obtain JWT token
-login_data = {
-    "User_mail": "allan",
-    "password": "1234"
-}
+load_dotenv()
 
-login_url = "http://52.203.72.116:8080/login"
-feed_url = "http://localhost:8082/feed"
+app = Flask(__name__)
+SECRET_KEY = os.getenv("SECRET_KEY")
 
-login_response = requests.post(login_url, json=login_data)
-if login_response.status_code != 200:
-    print("❌ Login failed:", login_response.status_code, login_response.text)
-    exit()
+# Iniciar el hilo consumidor del stream al arrancar la app
+start_consumer_thread()
 
-token = login_response.json().get("token")
-if not token:
-    print("Token was not received.")
-    exit()
+@app.route("/feed", methods=["GET"])
+def get_feed():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Token missing or invalid"}), 401
 
-print("Token successfully obtained.")
+    token = auth_header.replace("Bearer ", "")
+    try:
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = decoded.get("user_id")
+        if not user_id:
+            return jsonify({"error": "Invalid token payload"}), 401
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
 
-# Step 2: Get user feed
-headers = {
-    "Authorization": f"Bearer {token}"
-}
+    feed = get_user_feed(user_id)
+    return jsonify({"feed": feed}), 200
 
-feed_response = requests.get(feed_url, headers=headers)
-print("\n🔎 Feed status:", feed_response.status_code)
-
-try:
-    feed_data = feed_response.json()
-    print("📥 Feed data received:")
-    for i, pub in enumerate(feed_data.get("feed", []), start=1):
-        print(f"\n📌 Publication #{i}")
-        print("🆔 ID:", pub.get("publication_id"))
-        print("👤 Author:", pub.get("user_id"))
-        print("📝 Text:", pub.get("text"))
-        print("🗓 Date:", pub.get("datepublish"))
-        if pub.get("image_base64"):
-            print("🖼 Multimedia: Yes")
-        else:
-            print("🖼 Multimedia: No")
-except Exception as e:
-    print("❌ Error decoding JSON:", str(e))
-    print("Raw content:", feed_response.text)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8082, debug=True)

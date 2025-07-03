@@ -12,12 +12,12 @@ def decode_if_bytes(value):
 
 def update_feed_for_followers(publication_data, followers_str):
     if not followers_str:
-        print("Field 'followers' is empty in the event, skipping.")
+        print("⚠️ Field 'followers' is empty in the event, skipping.")
         return
 
     followers = [f.strip() for f in followers_str.split(",") if f.strip()]
     if not followers:
-        print("Parsed followers list is empty.")
+        print("⚠️ Parsed followers list is empty.")
         return
 
     r = conection_redis()
@@ -46,9 +46,9 @@ def update_feed_for_followers(publication_data, followers_str):
 
             r.lpush(feed_key, publication_json)
             r.ltrim(feed_key, 0, 99)
-            print(f"Publication added to feed of user {follower_id}")
+            print(f"✅ Publication added to feed of user {follower_id}")
         except Exception as e:
-            print(f"Error updating feed for user {follower_id}: {e}")
+            print(f"❌ Error updating feed for user {follower_id}: {e}")
 
 def get_user_feed(user_id):
     r = conection_redis()
@@ -76,7 +76,7 @@ def get_user_feed(user_id):
             publications.append(pub)
 
         except Exception as e:
-            print(f"Invalid entry ignored in feed: {e} -> {item}")
+            print(f"⚠️ Invalid entry ignored in feed: {e} -> {item}")
 
     return publications
 
@@ -92,7 +92,7 @@ def consume_publication_stream():
                 for stream, messages in entries:
                     stream_decoded = decode_if_bytes(stream)
                     for message_id, message in messages:
-                        print(f"Message received from stream {stream_decoded}: {message}")
+                        print(f"📨 Message received from stream {stream_decoded}: {message}")
 
                         publication_data = {
                             "user_id": decode_if_bytes(message.get(b'user_id') or message.get('user_id')),
