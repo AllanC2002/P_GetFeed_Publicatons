@@ -98,7 +98,7 @@ jobs:
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
   deploy:
-      name: qa create_user
+      name: qa feed_user
       needs: build
       runs-on: ubuntu-latest
 
@@ -110,20 +110,23 @@ jobs:
             username: ubuntu
             key: ${{ secrets.EC2_PEM }}
             script: |
-              docker stop project_create_user || true
-              docker rm project_create_user || true
+              docker stop project_feed_user || true
+              docker rm project_feed_user || true
               docker rmi ${{ secrets.DOCKER_REPO }}:qa || true
 
               docker pull ${{ secrets.DOCKER_REPO }}:qa
 
               docker run -d \
                 --restart always \
-                --name project_create_user \
+                --name project_feed_user \
                 -p 8080:8080 \
-                -e DBA_HOSTIP=${{ secrets.DBA_HOSTIP }} \
-                -e DBA_PORT=${{ secrets.DBA_PORT }} \
-                -e DBA_USER=${{ secrets.DBA_USER }} \
-                -e DBA_PASSWORD=${{ secrets.DBA_PASSWORD }} \
-                -e DBA_NAME=${{ secrets.DBA_NAME }} \
+                -e MONGO_HOSTIP=${{ secrets.MONGO_HOSTIP }} \
+                -e MONGO_PORT=${{ secrets.MONGO_PORT }} \
+                -e MONGO_USER=${{ secrets.MONGO_USER }} \
+                -e MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+                -e MONGO_DB=${{ secrets.MONGO_DB }} \
+                -e REDIS_HOSTIP=${{ secrets.REDIS_HOSTIP }} \
+                -e REDIS_PORT=${{ secrets.REDIS_PORT }} \
+                -e REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} \
                 -e SECRET_KEY=${{ secrets.SECRET_KEY }} \
                 ${{ secrets.DOCKER_REPO }}:qa

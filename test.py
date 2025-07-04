@@ -1,6 +1,5 @@
 import requests
 
-# Paso 1: Login para obtener el token JWT
 login_data = {
     "User_mail": "allan",
     "password": "1234"
@@ -19,9 +18,7 @@ if not token:
     print("❌ Token no recibido.")
     exit()
 
-print("✅ Token obtenido.")
-
-# Paso 2: Obtener feed del usuario
+print("Token .")
 headers = {
     "Authorization": f"Bearer {token}"
 }
@@ -36,10 +33,10 @@ try:
         print(f"\n📌 Publicación #{i}")
         print("🆔 ID:", pub.get("publication_id"))
         print("👤 Autor:", pub.get("user_id"))
-        print("📝 Texto:", pub.get("text"))
-        print("🗓 Fecha:", pub.get("datepublish"))
+        print("📝 Text:", pub.get("text"))
+        print("🗓 Date:", pub.get("datepublish"))
         if pub.get("image_base64"):
-            print("🖼 Multimedia: Sí")
+            print("🖼 Multimedia: Yes")
         else:
             print("🖼 Multimedia: No")
 except Exception as e:
