@@ -6,7 +6,8 @@ login_data = {
 }
 
 login_url = "http://52.203.72.116:8080/login"
-feed_url = "http://18.213.96.104:8080/feed"
+feed_url = "http://localhost:8080/feed"
+#feed_url = "http://54.147.87.111:8080/feed"
 
 login_response = requests.post(login_url, json=login_data)
 if login_response.status_code != 200:

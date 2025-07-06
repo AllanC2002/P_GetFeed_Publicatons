@@ -87,12 +87,14 @@ def consume_publication_stream():
 
     while True:
         try:
-            entries = r.xread({'stream_user_publications': last_id}, count=10, block=5000)
+            entries = r.xread({'stream_user_publications': last_id}, count=10, block=10000)
             if entries:
                 for stream, messages in entries:
                     stream_decoded = decode_if_bytes(stream)
                     for message_id, message in messages:
-                        print(f"📨 Message received from stream {stream_decoded}: {message}")
+                        cleaned_message = dict(message)
+                        cleaned_message.pop('image_base64', None)
+                        print(f"📨 Message received from stream {stream_decoded}: {cleaned_message}")
 
                         publication_data = {
                             "user_id": decode_if_bytes(message.get(b'user_id') or message.get('user_id')),
@@ -114,7 +116,7 @@ def consume_publication_stream():
                 time.sleep(1)
         except Exception as e:
             print(f"❌ Error reading from stream: {e}")
-            time.sleep(5)
+            time.sleep(10)
 
 def start_consumer_thread():
     thread = threading.Thread(target=consume_publication_stream, daemon=True)
